@@ -2,6 +2,7 @@ const db = require('./db');
 const po = require('./po');
 const grn = require('./grn');
 const invoice = require('./invoice');
+const matcher = require('./matcher');
 
 module.exports = {
   // Database utilities
@@ -21,4 +22,7 @@ module.exports = {
   ...invoice,
   invoiceService: invoice.invoiceService,
   InvoiceService: invoice.InvoiceService,
+
+  // Matching Engine
+  ...matcher,
 };
