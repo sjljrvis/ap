@@ -12,7 +12,7 @@ async function matchInvoice(invoiceId, options = {}) {
   const invoice = getInvoiceById(invoiceId, db);
   if (!invoice) throw new Error('Invoice not found');
 
-  const recordResult = (verdict, details, invoiceStatus) => {
+  const recordResult = db.transaction((verdict, details, invoiceStatus) => {
     db.prepare(`
       INSERT INTO match_results (invoice_id, verdict, details, price_tolerance_percent, quantity_tolerance_percent)
       VALUES (?, ?, ?, ?, ?)
@@ -23,7 +23,7 @@ async function matchInvoice(invoiceId, options = {}) {
     }
 
     return { verdict, details };
-  };
+  });
 
   // 1. Missing Purchase Order
   const po = getPurchaseOrder(invoice.po_number, db);

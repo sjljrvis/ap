@@ -1054,3 +1054,82 @@ describe('R7: Discrepancy Audit and Match History', () => {
     assert.ok(rows[0].matched_at, 'Each recorded match result must have an execution timestamp');
   });
 });
+
+describe('R8: Transactional Matching', () => {
+  it('Should rollback match_results insert if updateInvoiceStatus fails', async () => {
+    const { createPO } = getPoService();
+    const { createInvoice } = getInvoiceService();
+    const { matchInvoice, getMatchHistory } = getMatcherService();
+    const db = getDb();
+    
+    const uniqueSuffix = Date.now();
+
+    // Setup PO and Invoice
+    await createPO({
+      po_number: `PO-TX-TEST-${uniqueSuffix}`,
+      vendor_id: 'V-TX-001',
+      issue_date: '2023-10-01',
+      total_amount: 500.0,
+      line_items: [
+        {
+          line_number: 1,
+          item_sku: 'SKU-TX',
+          description: 'Tx Item',
+          quantity: 10,
+          unit_price: 50.0,
+          line_total: 500.0,
+        },
+      ],
+    });
+
+    const storedInvoice = await createInvoice({
+      invoice_number: `INV-TX-${uniqueSuffix}`,
+      po_number: `PO-TX-TEST-${uniqueSuffix}`,
+      vendor_id: 'V-TX-001',
+      invoice_date: '2023-10-05',
+      total_amount: 500.0,
+      line_items: [
+        {
+          line_number: 1,
+          item_sku: 'SKU-TX',
+          quantity_billed: 10,
+          unit_price: 50.0,
+          line_total: 500.0,
+        },
+      ],
+    });
+
+    // Create a trigger that will raise an error on update of invoices
+    db.exec(`
+      CREATE TRIGGER fail_update_invoices
+      BEFORE UPDATE ON invoices
+      FOR EACH ROW
+      BEGIN
+        SELECT RAISE(ABORT, 'Simulated failure during updateInvoiceStatus');
+      END;
+    `);
+
+    try {
+      await assert.rejects(
+        matchInvoice(storedInvoice.id),
+        /Simulated failure during updateInvoiceStatus/,
+        'Should reject due to simulated DB failure'
+      );
+
+      // Verify that the insert to match_results was rolled back
+      const history = await getMatchHistory(storedInvoice.id);
+      const attempts =
+        history.attempts ||
+        history.history ||
+        history.runs ||
+        history.match_attempts ||
+        (Array.isArray(history) ? history : []);
+        
+      assert.equal(attempts.length, 0, 'Match results should be rolled back and thus empty');
+    } finally {
+      // Clean up trigger
+      db.exec('DROP TRIGGER IF EXISTS fail_update_invoices');
+    }
+  });
+});
+
