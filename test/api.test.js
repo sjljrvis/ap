@@ -477,3 +477,45 @@ describe('R7: Discrepancy Audit and Match History', () => {
     assert.strictEqual(resHist.data.latest_run.verdict, 'MATCHED');
   });
 });
+
+describe('Numeric identifier handling in Express routes', () => {
+  it('Should fetch the correct PO when po_number is entirely numeric', async () => {
+    // create a dummy PO so the id might be small like 1 or 2
+    const dummyPO = { po_number: `PO-DUMMY-${Date.now()}`, vendor_id: 'V1', issue_date: '2025-01-15', total_amount: 10, line_items: [{ item_sku: 'S1', quantity: 1, unit_price: 10, description: 'S1' }] };
+    await request('POST', '/api/po', dummyPO);
+
+    const numericPoNumber = `${Date.now()}`;
+    await request('POST', '/api/po', {
+      po_number: numericPoNumber,
+      vendor_id: 'V2',
+      issue_date: '2025-01-15',
+      total_amount: 20,
+      line_items: [{ item_sku: 'S2', quantity: 1, unit_price: 20, description: 'S2' }]
+    });
+
+    const res = await request('GET', `/api/po/${numericPoNumber}`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.data.po_number, numericPoNumber);
+    assert.strictEqual(res.data.vendor_id, 'V2');
+  });
+
+  it('Should fetch the correct Invoice when invoice_number is entirely numeric', async () => {
+    const dummyInv = { invoice_number: `INV-DUMMY-${Date.now()}`, po_number: 'PO1', vendor_id: 'V1', invoice_date: '2025-01-15', total_amount: 10, line_items: [{ item_sku: 'S1', quantity_billed: 1, unit_price: 10, line_number: 1 }] };
+    await request('POST', '/api/invoice', dummyInv);
+
+    const numericInvNumber = `${Date.now()}`;
+    await request('POST', '/api/invoice', {
+      invoice_number: numericInvNumber,
+      po_number: 'PO1',
+      vendor_id: 'V2',
+      invoice_date: '2025-01-15',
+      total_amount: 20,
+      line_items: [{ item_sku: 'S2', quantity_billed: 1, unit_price: 20, line_number: 1 }]
+    });
+
+    const res = await request('GET', `/api/invoice/${numericInvNumber}`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.data.invoice_number, numericInvNumber);
+    assert.strictEqual(res.data.vendor_id, 'V2');
+  });
+});

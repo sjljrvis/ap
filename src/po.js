@@ -140,11 +140,13 @@ function getPurchaseOrder(poNumberOrId, database) {
   const db = database || getDb();
 
   let poRow;
-  if (typeof poNumberOrId === 'number' || (!isNaN(poNumberOrId) && !poNumberOrId.toString().startsWith('PO-'))) {
+  if (typeof poNumberOrId === 'number') {
     poRow = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(poNumberOrId);
-  }
-  if (!poRow) {
+  } else {
     poRow = db.prepare('SELECT * FROM purchase_orders WHERE po_number = ?').get(poNumberOrId);
+    if (!poRow && !isNaN(poNumberOrId) && !poNumberOrId.toString().startsWith('PO-')) {
+      poRow = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(Number(poNumberOrId));
+    }
   }
 
   if (!poRow) {

@@ -165,13 +165,7 @@ invoiceRouter.get('/:id/match', async (req, res, next) => {
 invoiceRouter.get('/:idOrNumber', (req, res, next) => {
   try {
     const rawParam = req.params.idOrNumber;
-    const numericParam = !isNaN(rawParam) ? Number(rawParam) : rawParam;
-    let inv = null;
-    if (typeof numericParam === 'number') {
-      inv = getInvoiceById(numericParam) || getInvoice(numericParam);
-    } else {
-      inv = getInvoice(rawParam);
-    }
+    const inv = getInvoice(rawParam);
 
     if (!inv) {
       return res.status(404).json({ error: 'Invoice not found' });

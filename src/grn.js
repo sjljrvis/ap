@@ -137,11 +137,13 @@ function getGoodsReceiptNote(grnNumberOrId, database) {
   const db = database || getDb();
 
   let grnRow;
-  if (typeof grnNumberOrId === 'number' || (!isNaN(grnNumberOrId) && !grnNumberOrId.toString().startsWith('GRN-'))) {
+  if (typeof grnNumberOrId === 'number') {
     grnRow = db.prepare('SELECT * FROM goods_receipt_notes WHERE id = ?').get(grnNumberOrId);
-  }
-  if (!grnRow) {
+  } else {
     grnRow = db.prepare('SELECT * FROM goods_receipt_notes WHERE grn_number = ?').get(grnNumberOrId);
+    if (!grnRow && !isNaN(grnNumberOrId) && !grnNumberOrId.toString().startsWith('GRN-')) {
+      grnRow = db.prepare('SELECT * FROM goods_receipt_notes WHERE id = ?').get(Number(grnNumberOrId));
+    }
   }
 
   if (!grnRow) {

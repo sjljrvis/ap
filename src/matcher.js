@@ -49,32 +49,34 @@ async function matchInvoice(invoiceId, options = {}) {
 
   for (const invLine of invoice.lines) {
     const sku = invLine.item_sku;
-    const poLine = po.lines.find((l) => l.item_sku === sku);
+    const matchingPOLines = po.lines.filter((l) => l.item_sku === sku);
 
     // Cumulative received quantity for this SKU across all GRNs for this PO
     let totalReceived = 0;
     for (const grn of grns) {
-      const gLine = grn.lines.find((l) => l.item_sku === sku);
-      if (gLine) {
-        totalReceived += gLine.quantity_received;
+      for (const gLine of grn.lines) {
+        if (gLine.item_sku === sku) {
+          totalReceived += gLine.quantity_received;
+        }
       }
     }
 
-    if (!poLine) {
+    if (matchingPOLines.length === 0) {
       lineDetails.push({ sku, error: 'SKU not found in PO' });
       hasPriceMismatch = true; // or just some mismatch
       continue;
     }
 
     // Price Matching
-    const allowedPrice = poLine.unit_price * (1 + priceTolerancePercent / 100);
+    const bestPOPrice = Math.max(...matchingPOLines.map(l => l.unit_price));
+    const allowedPrice = bestPOPrice * (1 + priceTolerancePercent / 100);
     if (invLine.unit_price > allowedPrice) {
       hasPriceMismatch = true;
-      const variance = invLine.unit_price - poLine.unit_price;
+      const variance = invLine.unit_price - bestPOPrice;
       lineDetails.push({
         sku,
         error: 'PRICE_MISMATCH',
-        message: `Price variance of ${variance} (billed: ${invLine.unit_price}, allowed: ${poLine.unit_price}, tolerance: ${priceTolerancePercent}%)`,
+        message: `Price variance of ${variance} (billed: ${invLine.unit_price}, allowed: ${bestPOPrice}, tolerance: ${priceTolerancePercent}%)`,
       });
     }
 

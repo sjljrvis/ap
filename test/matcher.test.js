@@ -1133,3 +1133,55 @@ describe('R8: Transactional Matching', () => {
   });
 });
 
+
+describe('Multi-line SKU Matching', () => {
+  it('Should sum multiple GRN lines for the same SKU and evaluate multiple PO lines for the highest price', async () => {
+    const { createPO } = getPoService();
+    const { createGRN } = getGrnService();
+    const { createInvoice } = getInvoiceService();
+    const { matchInvoice } = getMatcherService();
+
+    const poNumber = `PO-MULTILINE-${Date.now()}`;
+    const vendorId = 'V-MULTI';
+
+    // PO with split SKU lines
+    await createPO({
+      po_number: poNumber,
+      vendor_id: vendorId,
+      issue_date: '2025-01-01',
+      total_amount: 300,
+      line_items: [
+        { item_sku: 'SKU-MULTI', quantity: 5, unit_price: 10 },
+        { item_sku: 'SKU-MULTI', quantity: 5, unit_price: 15 } // Higher price
+      ]
+    });
+
+    // GRN with split SKU lines
+    await createGRN({
+      grn_number: `GRN-MULTILINE-${Date.now()}`,
+      po_number: poNumber,
+      receipt_date: '2025-01-02',
+      received_by: 'TestUser',
+      line_items: [
+        { item_sku: 'SKU-MULTI', quantity_received: 4 },
+        { item_sku: 'SKU-MULTI', quantity_received: 4 } // Total 8 received
+      ]
+    });
+
+    // Invoice billing 8 items at the highest price 15
+    const inv = await createInvoice({
+      invoice_number: `INV-MULTILINE-${Date.now()}`,
+      po_number: poNumber,
+      vendor_id: vendorId,
+      invoice_date: '2025-01-03',
+      total_amount: 120,
+      line_items: [
+        { item_sku: 'SKU-MULTI', quantity_billed: 8, unit_price: 15 }
+      ]
+    });
+
+    const result = await matchInvoice(inv.id);
+    const assert = require('node:assert/strict');
+    assert.strictEqual(result.verdict, 'MATCHED', 'Should sum GRN lines and use highest PO price');
+  });
+});
