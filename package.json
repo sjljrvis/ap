@@ -1,0 +1,20 @@
+{
+  "name": "accounts-payable",
+  "version": "1.0.0",
+  "description": "Three-way invoice matching and accounts payable system",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^13.2.0",
+    "express": "^5.3.0"
+  }
+}
